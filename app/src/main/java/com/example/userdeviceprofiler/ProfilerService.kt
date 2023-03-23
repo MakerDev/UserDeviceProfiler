@@ -1,19 +1,16 @@
 package com.example.userdeviceprofiler
 
-import android.Manifest
-import android.annotation.SuppressLint
 import android.app.*
 import android.app.usage.UsageStats
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Debug
 import android.os.IBinder
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -21,20 +18,32 @@ import java.util.*
 
 class ProfilerService: Service() {
     private var timer: Timer? = null
-    private lateinit var notificationManager: NotificationManagerCompat
+    private lateinit var notificationManager: NotificationManager
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        notificationManager = NotificationManagerCompat.from(this)
-        createNotificationChannel()
-        showNotification()
+        if (intent?.action != null && intent.action.equals(
+                "STOP", ignoreCase = true)) {
+            timer?.cancel()
+            stopSelf()
+            IS_RUNNING = false
+            return START_NOT_STICKY
+        }
 
-        timer = Timer()
-        timer?.schedule(object : TimerTask() {
-            override fun run() {
-                //TODO
-                profile()
+        if (intent?.action != null && intent.action.equals("START", ignoreCase = true)) {
+            showNotification()
+
+            if (timer == null) {
+                timer = Timer()
+                timer?.schedule(object : TimerTask() {
+                    override fun run() {
+                        //TODO
+                        profile()
+                    }
+                }, 0, 10000) // 10 seconds
             }
-        }, 0, 10000) // 10 seconds
+
+            IS_RUNNING = true
+        }
 
         return START_STICKY
     }
@@ -48,6 +57,8 @@ class ProfilerService: Service() {
     }
 
     private fun profile() {
+        profileUserData()
+        profileSystemData()
         val usageStatsManager = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
         val activityManager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
         // Get the current foreground app and its importance
@@ -122,40 +133,39 @@ class ProfilerService: Service() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        timer?.cancel()
-        timer = null
-    }
-
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                SERVICE_CHANNEL_ID,
-                "EISProfiler_service_channel",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "EIS Profiler Notification Channel"
-            }
-            val notificationManager =
-                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (notificationManager.getNotificationChannel(SERVICE_CHANNEL_ID) != null) {
+            return
         }
+
+        val channel = NotificationChannel(
+            SERVICE_CHANNEL_ID,
+            applicationContext.getString(R.string.app_name),
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = "EIS Profiler Notification Channel"
+        }
+
+        notificationManager.createNotificationChannel(channel)
     }
 
-    @SuppressLint("MissingPermission")
     private fun showNotification() {
+        createNotificationChannel()
+
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
         val notification = NotificationCompat.Builder(this, SERVICE_CHANNEL_ID)
-            .setSmallIcon(R.drawable.notification_icon)
+            .setSmallIcon(R.drawable.icon_notification)
             .setContentTitle("EISProfiler")
             .setContentText("Profiler is running")
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(false)
             .setContentIntent(pendingIntent)
             .build()
 
@@ -166,8 +176,23 @@ class ProfilerService: Service() {
         return null
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        timer?.cancel()
+        timer = null
+    }
+
     companion object {
-        private const val ONGOING_NOTIFICATION_ID = 1
+        private var is_running: Boolean = false
+        var IS_RUNNING: Boolean
+            get() {
+                return is_running
+            }
+        set(is_running: Boolean) {
+            this.is_running = is_running
+        }
+
+        private const val ONGOING_NOTIFICATION_ID = 18
         private const val SERVICE_CHANNEL_ID = "profiler_service_channel_id"
     }
 }

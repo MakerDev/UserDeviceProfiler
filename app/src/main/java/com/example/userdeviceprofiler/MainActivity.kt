@@ -1,27 +1,22 @@
 package com.example.userdeviceprofiler
 
-import android.app.ActivityManager
-import android.app.usage.UsageStats
-import android.app.usage.UsageStatsManager
+import android.Manifest
+import android.app.AppOpsManager
 import android.content.Intent
-import android.os.Build
+import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Debug
+import android.os.Process
 import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.userdeviceprofiler.databinding.ActivityMainBinding
-import java.io.BufferedReader
-import java.io.FileReader
-import java.io.IOException
-import java.io.InputStreamReader
 import java.util.*
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var timer: Timer
@@ -40,26 +35,64 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
-        // TODO: 일단 onclick listener에 수집 루틴 넣어서 디버깅 가능하게 설정.
-        binding.fab.setOnClickListener { _ ->
-            binding.fab.isEnabled = false
+        if (ProfilerService.IS_RUNNING) {
+            binding.fabStop.isEnabled = true
+            binding.fabStart.isEnabled = false
+        }
+
+        binding.fabStart.setOnClickListener { _ ->
+            binding.fabStart.isEnabled = false
+            binding.fabStop.isEnabled = true
             // Start the profiler foreground service.
             val intent = Intent(this, ProfilerService::class.java)
+            intent.action = "START"
             applicationContext.startForegroundService(intent)
         }
         
-        //TODO: stop service 버튼 제작
+        binding.fabStop.setOnClickListener { _ ->
+            binding.fabStart.isEnabled = true
+            binding.fabStop.isEnabled = false
 
-        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        startActivity(intent)
+            // Stop the profiler foreground service.
+            val intent = Intent(this, ProfilerService::class.java)
+            intent.action = "STOP"
+            applicationContext.startService(intent)
+        }
 
-        timer = Timer()
-        timer.scheduleAtFixedRate(object : TimerTask() {
-            override fun run() {
-                // TODO: 수집루틴 넣기.
+        val granted = checkPermission()
+
+        if (!granted) {
+            binding.fabStart.isEnabled = false
+
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+
+            if (checkPermission()) {
+                // TODO: Display to user that you must allow the user stats permission
+                binding.fabStart.isEnabled = true
             }
-        }, 0, 1000)
+        }
+    }
+
+    private fun checkPermission(): Boolean {
+        val granted: Boolean
+        val appOps = applicationContext
+            .getSystemService(APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(), applicationContext.packageName
+        )
+
+        if (mode == AppOpsManager.MODE_DEFAULT) {
+            granted = applicationContext.checkCallingOrSelfPermission(
+                Manifest.permission.PACKAGE_USAGE_STATS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            granted = (mode == AppOpsManager.MODE_ALLOWED)
+        }
+
+        return granted
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
