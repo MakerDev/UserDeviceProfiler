@@ -9,6 +9,7 @@ import android.os.Process
 import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -19,7 +20,6 @@ import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var timer: Timer
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
@@ -59,17 +59,36 @@ class MainActivity : AppCompatActivity() {
             applicationContext.startService(intent)
         }
 
+        val locationPermissionRequest = registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            when {
+                permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
+                    // Fine location access granted.
+                }
+                permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
+                    // Only approximate location access granted.
+                } else -> {
+                    // No location access granted.
+                }
+            }
+        }
+
+        locationPermissionRequest.launch(arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION))
+
         val granted = checkPermission()
 
         if (!granted) {
             binding.fabStart.isEnabled = false
 
+            // TODO: Display to user that you must allow the user stats permission
             val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             startActivity(intent)
 
             if (checkPermission()) {
-                // TODO: Display to user that you must allow the user stats permission
                 binding.fabStart.isEnabled = true
             }
         }

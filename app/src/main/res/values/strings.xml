@@ -9,4 +9,92 @@
 
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+
+    <!-- Strings from AnotherMonior -->
+    <string name="prefs">Prefs</string>
+    <string name="sbh">status_bar_height</string>
+    <string name="nbh">navigation_bar_height</string>
+    <string name="dimen">dimen</string>
+    <string name="android">android</string>
+    <string name="europeLondon">Europe/London</string>
+    <string name="marketDetails">market://details?id=</string>
+    <integer name="defaultIntervalRead">1000</integer>
+    <integer name="defaultIntervalUpdate">1000</integer>
+    <integer name="defaultIntervalWidth">1</integer>
+
+    <string name="readThread">readThread</string>
+
+    <string name="actionStartRecord">actionRecord</string>
+    <string name="actionStopRecord">actionStop</string>
+    <string name="actionClose">actionClose</string>
+    <string name="actionSetIconRecord">actionSetIconRecord</string>
+    <string name="actionDeadProcess">actionRemoveProcess</string>
+    <string name="actionFinishActivity">actionCloseActivity</string>
+
+    <string name="pId">pId</string>
+    <string name="pName">pName</string>
+    <string name="pPackage">pPackage</string>
+    <string name="pAppName">pAppName</string>
+    <string name="pTPD">pPTD</string>
+    <string name="pSelected">pSelected</string>
+    <string name="pDead">pDead</string>
+    <string name="pColour">pColour</string>
+    <string name="work">work</string>
+    <string name="workBefore">workBefore</string>
+    <string name="pFinalValue">finalValue</string>
+    <string name="process">process</string>
+    <string name="screenRotated">screenRotated</string>
+    <string name="listSelected">listSelected</string>
+    <string name="listProcesses">listProcesses</string>
+
+    <integer name="storagePermission">1</integer>
+    <string name="kB">kB</string>
+    <string name="percent">%</string>
+    <string name="menuShown">menuShown</string>
+    <string name="settingsShown">settingsShown</string>
+    <string name="orientation">orientation</string>
+    <string name="processesMode">processesMode</string>
+    <string name="canvasLocked">canvasLocked</string>
+
+    <string name="welcome">firstTime</string>
+    <string name="welcomeDate">firstTimeDate</string>
+    <string name="firstTimeProcesses">firstTimeProcesses</string>
+    <string name="feedbackFirstTime">feedbackFirstTime</string>
+    <string name="feedbackDone">feedbackDone</string>
+
+    <string name="intervalRead">intervalRead</string>
+    <string name="intervalUpdate">intervalUpdate</string>
+    <string name="intervalWidth">intervalWidth</string>
+
+    <string name="cpuTotal">cpuTotalD</string>
+    <string name="cpuAM">cpuAMD</string>
+    <string name="memUsed">memUsedD</string>
+    <string name="memAvailable">memAvailableD</string>
+    <string name="memFree">memFreeD</string>
+    <string name="cached">cachedD</string>
+    <string name="threshold">thresholdD</string>
+
+    <string name="processMode">processMode</string>
+    <integer name="processesModeShowCPU">0</integer>
+    <integer name="processesModeShowMemory">1</integer>
+
+    <string name="graphicMode">graphicMode</string>
+    <integer name="graphicModeShowMemory">0</integer>
+    <integer name="graphicModeHideMemory">1</integer>
+
+    <string name="currentItem">ci</string>
+
+    <string name="mSRead">mSRead</string>
+    <string name="mSUpdate">mSUpdate</string>
+    <string name="mSWidth">mSWidth</string>
+
+    <string name="mCBMemFreeD">memFreeD</string>
+    <string name="mCBBuffersD">buffersD</string>
+    <string name="mCBCachedD">cachedD</string>
+    <string name="mCBActiveD">activeD</string>
+    <string name="mCBInactiveD">inactiveD</string>
+    <string name="mCBSwapTotalD">swapTotalD</string>
+    <string name="mCBDirtyD">dirtyD</string>
+    <string name="mCBCpuTotalD">cpuTotalD</string>
+    <string name="mCBCpuAMD">cpuAMD</string>
 </resources>
