@@ -8,13 +8,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.location.LocationManager
-import android.os.BatteryManager
-import android.os.Build
-import android.os.IBinder
+import android.os.*
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import java.io.File
+import java.io.FileOutputStream
 import java.io.FileWriter
+import java.io.OutputStreamWriter
 import java.util.*
 
 
@@ -83,11 +83,13 @@ class ProfilerService : Service() {
             currentTime
         )
 
-        val userUsageDataList = ArrayList<UserUsageData>()
+        // Create a map that takes the package name as key and UserUsageData as value
+        val userUsageDataList = mutableListOf<UserUsageData>()
         // Get the current foreground app information and store their data list in form of UserUsageData
         for (usageStats in stats) {
             val userUsageData = UserUsageData()
             userUsageData.packageName = usageStats.packageName
+            // TODO: calculate memory amount used.
             userUsageData.memoryUsed = usageStats.totalTimeInForeground
             userUsageData.lastTimeUsed = usageStats.lastTimeUsed
             userUsageData.totalTimeInForeground = usageStats.totalTimeInForeground
@@ -117,6 +119,8 @@ class ProfilerService : Service() {
         }
 
         // Process the retrieved usage events
+        val eventList = mutableListOf<String>()
+        eventList.add("timestamp,packageName,timestamp,eventType,standbyBucket\n")
         for (event in usageEvents) {
             val packageName = event.packageName
             val timestamp = event.timeStamp
@@ -126,10 +130,23 @@ class ProfilerService : Service() {
             } else {
                 -1
             }
+
+            val eventString = "$currentTime,$packageName,$timestamp,$eventType,$standbyBucket\n"
+            eventList.add(eventString)
         }
 
-        // TODO: Save userdata to a csv file named 'user_{timestamp}.csv'
+        // Save userdata list to a csv file named 'user_{timestamp}.csv'
+        val userUsageDataString = mutableListOf<String>()
+        val header = "timestamp,packageName,memoryUsed,lastTimeUsed,totalTimeInForeground,firstTimeUsed,lastTimeForegroundServiceUsed,totalTimeForegroundServiceUsed,lastTimeVisible,totalTimeVisible\n"
+        userUsageDataString.add(header)
 
+        for (userUsageData in userUsageDataList) {
+            val userUsageDataLine = "$currentTime,${userUsageData.packageName},${userUsageData.memoryUsed},${userUsageData.lastTimeUsed},${userUsageData.totalTimeInForeground},${userUsageData.firstTimeUsed},${userUsageData.lastTimeForegroundServiceUsed},${userUsageData.totalTimeForegroundServiceUsed},${userUsageData.lastTimeVisible},${userUsageData.totalTimeVisible}\n"
+            userUsageDataString.add(userUsageDataLine)
+        }
+
+        saveFileInBackground("user_${currentTime}.csv", userUsageDataString.toTypedArray())
+        saveFileInBackground("events_${currentTime}.csv", eventList.toTypedArray())
     }
 
 
@@ -138,6 +155,7 @@ class ProfilerService : Service() {
         // Get the current GPS information
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        // TODO: Ensure the GPS permission is set to be always on, not only when the app is in use.
         val latitude = location?.latitude
         val longitude = location?.longitude
         val accuracy = location?.accuracy
@@ -158,27 +176,34 @@ class ProfilerService : Service() {
             0
         )
 
-        val data = "$currentTime,$longitude,$latitude,$accuracy,$isCharging,$batteryLevel,$batterOverheat,$temperature,$screenBrightness\n"
+        // Get if the screen is on or off.
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val isScreenOn = powerManager.isInteractive
+
+        val data = "$currentTime,$longitude,$latitude,$accuracy,$isCharging,$batteryLevel,$batterOverheat,$temperature,$screenBrightness,$isScreenOn\n"
         systemDataList.add(data)
 
-        if (systemDataList.size >= 100) {
+        if (systemDataList.size >= 10) {
             // Save the data collected above as a csv file named 'system_{timestamp}.csv'
-            val file = File(
-                applicationContext.getExternalFilesDir(null),
-                "system_${currentTime}.csv"
-            )
+            systemDataList.add(0, "timestamp,longitude,latitude,accuracy,isCharging,batteryLevel,batterOverheat,temperature,screenBrightness,isScreenOn\n")
+            saveFileInBackground("system_${currentTime}.csv", systemDataList.toTypedArray())
+            systemDataList.clear()
+        }
+    }
 
+    private fun saveFileInBackground(fileName: String, data: Array<String>) {
+        val thread = Thread {
+            // Do file saving operations in background thread
+            val file = File(getExternalFilesDir(null), fileName)
             val writer = FileWriter(file)
-
-            val header = "Timestamp,Longitude,Latitude,Accuracy,IsCharging,BatteryLevel,BatteryOverheat,Temperature,ScreenBrightness\n"
-            writer.append(header)
-            for (dataLine in systemDataList) {
+            for (dataLine in data) {
                 writer.append(dataLine)
             }
 
-            writer.flush()
             writer.close()
         }
+
+        thread.start()
     }
 
     private fun profile() {
@@ -244,7 +269,7 @@ class ProfilerService : Service() {
             get() {
                 return is_running
             }
-            set(is_running: Boolean) {
+            set(is_running) {
                 this.is_running = is_running
             }
         private const val MAX_SAMPLES = 3000
