@@ -1,4 +1,4 @@
-iUserDeviceProfiler 안내
+UserDeviceProfiler 안내
 =====================
 
 > UserDeviceProfiler는 사용자의 디바이스 및 사용 패턴 정보를 수집합니다.
