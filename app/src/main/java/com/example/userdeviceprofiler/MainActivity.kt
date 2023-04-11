@@ -2,6 +2,7 @@ package com.example.userdeviceprofiler
 
 import android.Manifest
 import android.app.AppOpsManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -11,6 +12,8 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
@@ -74,6 +77,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        if (!isNotificationPermissionGranted(applicationContext)) {
+            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            intent.putExtra(Settings.EXTRA_APP_PACKAGE, applicationContext.packageName)
+            startActivity(intent)
+        }
+
         locationPermissionRequest.launch(arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION))
@@ -83,15 +92,14 @@ class MainActivity : AppCompatActivity() {
         if (!granted) {
             binding.fabStart.isEnabled = false
 
-            // TODO: Display to user that you must allow the user stats permission
             val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             startActivity(intent)
-
-            if (checkPermission()) {
-                binding.fabStart.isEnabled = true
-            }
         }
+    }
+
+    private fun isNotificationPermissionGranted(context: Context): Boolean {
+        return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
     private fun checkPermission(): Boolean {

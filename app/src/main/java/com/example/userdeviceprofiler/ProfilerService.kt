@@ -280,7 +280,7 @@ class ProfilerService : Service() {
             set(is_running) {
                 this.is_running = is_running
             }
-        
+
         private const val ONGOING_NOTIFICATION_ID = 18
         private const val SERVICE_CHANNEL_ID = "profiler_service_channel_id"
     }
