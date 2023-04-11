@@ -12,9 +12,7 @@ import android.os.*
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import java.io.File
-import java.io.FileOutputStream
 import java.io.FileWriter
-import java.io.OutputStreamWriter
 import java.util.*
 
 
@@ -282,7 +280,7 @@ class ProfilerService : Service() {
             set(is_running) {
                 this.is_running = is_running
             }
-        private const val MAX_SAMPLES = 3000
+        
         private const val ONGOING_NOTIFICATION_ID = 18
         private const val SERVICE_CHANNEL_ID = "profiler_service_channel_id"
     }
