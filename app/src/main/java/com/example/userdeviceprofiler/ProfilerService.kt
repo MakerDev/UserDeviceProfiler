@@ -38,6 +38,10 @@ class ProfilerService : Service() {
     private var usageStatsManager: UsageStatsManager? = null
     private var activityManager: ActivityManager? = null
     private var systemDataList: MutableList<String> = mutableListOf()
+    private var lastGpsCollected:Long = 0
+    private var latitude: Double = 0.0
+    private var longitude: Double = 0.0
+    private var accuracy: Float = 0.0f
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action != null && intent.action.equals(
@@ -153,12 +157,18 @@ class ProfilerService : Service() {
     @SuppressLint("MissingPermission")
     private fun profileSystemData(currentTime: Long) {
         // Get the current GPS information
-        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-        val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-        // TODO: Ensure the GPS permission is set to be always on, not only when the app is in use.
-        val latitude = location?.latitude
-        val longitude = location?.longitude
-        val accuracy = location?.accuracy
+        if (currentTime - lastGpsCollected > 1000 * 60 * 5) { // 5 minutes
+            lastGpsCollected = currentTime
+            val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+            val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+
+            // TODO: Ensure the GPS permission is set to be always on, not only when the app is in use.
+            if (location != null) {
+                latitude = location.latitude
+                longitude = location.longitude
+                accuracy = location.accuracy
+            }
+        }
 
         // Get the current battery level
         val batteryManager = getSystemService(BATTERY_SERVICE) as BatteryManager
