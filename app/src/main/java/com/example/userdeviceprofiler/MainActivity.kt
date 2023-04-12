@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity() {
         val granted: Boolean
         val appOps = applicationContext
             .getSystemService(APP_OPS_SERVICE) as AppOpsManager
-        val mode = appOps.checkOpNoThrow(
+        val mode = appOps.unsafeCheckOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS,
             Process.myUid(), applicationContext.packageName
         )
