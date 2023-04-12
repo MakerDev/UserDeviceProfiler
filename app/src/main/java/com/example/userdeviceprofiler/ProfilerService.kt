@@ -14,38 +14,28 @@ import androidx.core.app.NotificationCompat
 import java.io.File
 import java.io.FileWriter
 import java.util.*
-
-
-class UserUsageData {
-    // Information about the current foreground app.
-    var packageName: String? = null
-    var memoryUsed: Long? = null
-    var lastTimeUsed: Long? = null
-    var lastTimeVisible: Long? = null
-    var totalTimeVisible: Long? = null
-    var totalTimeInForeground: Long? = null
-    var firstTimeUsed: Long? = null
-    var totalTimeForegroundServiceUsed: Long? = null
-    var lastTimeForegroundServiceUsed: Long? = null
-
-}
+import com.example.userdeviceprofiler.data.UserUsageData
 
 class ProfilerService : Service() {
     private var timer: Timer? = null
     private lateinit var notificationManager: NotificationManager
     private var usageStatsManager: UsageStatsManager? = null
     private var activityManager: ActivityManager? = null
-    private var systemDataList: MutableList<String> = mutableListOf()
     private var lastGpsCollected:Long = 0
     private var latitude: Double = 0.0
     private var longitude: Double = 0.0
     private var accuracy: Float = 0.0f
+    private var userRecords: MutableList<String> = mutableListOf()
+    private var eventRecords: MutableList<String> = mutableListOf()
+    private var systemRecords: MutableList<String> = mutableListOf()
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action != null && intent.action.equals(
                 "STOP", ignoreCase = true
             )
         ) {
+            //Flush current records to file
+            flushRecords()
             timer?.cancel()
             stopSelf()
             IS_RUNNING = false
@@ -70,22 +60,37 @@ class ProfilerService : Service() {
         return START_STICKY
     }
 
+    private fun flushRecords() {
+        val currentTime = System.currentTimeMillis()
+
+        userRecords.add(0, USER_USAGE_HEADER)
+        eventRecords.add(0, EVENT_HEADER)
+        systemRecords.add(0, SYSTEM_HEADER)
+
+        saveFileInBackground("user_${currentTime}.csv", userRecords)
+        saveFileInBackground("events_${currentTime}.csv", eventRecords)
+        saveFileInBackground("system_${currentTime}.csv", systemRecords)
+    }
+
     private fun profileUserData(currentTime: Long) {
         if (usageStatsManager == null) {
             usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
             activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         }
 
-        // Get the current foreground app and its importance
         val interval = 1000 * 10
 
+        profileUserUsage(currentTime, interval)
+        profileUserEvents(currentTime, interval)
+    }
+
+    private fun profileUserUsage(currentTime: Long, interval: Int = 10000) {
         val stats = usageStatsManager!!.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY,
             currentTime - interval, // 10 sec period
             currentTime
         )
 
-        // Create a map that takes the package name as key and UserUsageData as value
         val userUsageDataList = mutableListOf<UserUsageData>()
         // Get the current foreground app information and store their data list in form of UserUsageData
         for (usageStats in stats) {
@@ -109,6 +114,23 @@ class ProfilerService : Service() {
             userUsageDataList.add(userUsageData)
         }
 
+        val userUsageDataString = mutableListOf<String>()
+
+        for (userUsageData in userUsageDataList) {
+            val userUsageDataLine =
+                "$currentTime,${userUsageData.packageName},${userUsageData.memoryUsed},${userUsageData.lastTimeUsed},${userUsageData.totalTimeInForeground},${userUsageData.firstTimeUsed},${userUsageData.lastTimeForegroundServiceUsed},${userUsageData.totalTimeForegroundServiceUsed},${userUsageData.lastTimeVisible},${userUsageData.totalTimeVisible}\n"
+            userUsageDataString.add(userUsageDataLine)
+        }
+
+        updateRecords(
+            userRecords,
+            userUsageDataString,
+            USER_USAGE_HEADER,
+            "user_${currentTime}.csv"
+        )
+    }
+
+    private fun profileUserEvents(currentTime: Long, interval: Int = 10000) {
         val query = UsageEvents.Event.NONE
         val usageEvents = mutableListOf<UsageEvents.Event>()
         val usageEventsIterator = usageStatsManager!!.queryEvents(currentTime - interval, currentTime)
@@ -120,9 +142,8 @@ class ProfilerService : Service() {
             }
         }
 
-        // Process the retrieved usage events
-        val eventList = mutableListOf<String>()
-        eventList.add("timestamp,packageName,timestamp,eventType,standbyBucket\n")
+        val eventUsageDataString = mutableListOf<String>()
+
         for (event in usageEvents) {
             val packageName = event.packageName
             val timestamp = event.timeStamp
@@ -134,23 +155,21 @@ class ProfilerService : Service() {
             }
 
             val eventString = "$currentTime,$packageName,$timestamp,$eventType,$standbyBucket\n"
-            eventList.add(eventString)
+            eventUsageDataString.add(eventString)
         }
 
-        // Save userdata list to a csv file named 'user_{timestamp}.csv'
-        val userUsageDataString = mutableListOf<String>()
-        val header = "timestamp,packageName,memoryUsed,lastTimeUsed,totalTimeInForeground,firstTimeUsed,lastTimeForegroundServiceUsed,totalTimeForegroundServiceUsed,lastTimeVisible,totalTimeVisible\n"
-        userUsageDataString.add(header)
-
-        for (userUsageData in userUsageDataList) {
-            val userUsageDataLine = "$currentTime,${userUsageData.packageName},${userUsageData.memoryUsed},${userUsageData.lastTimeUsed},${userUsageData.totalTimeInForeground},${userUsageData.firstTimeUsed},${userUsageData.lastTimeForegroundServiceUsed},${userUsageData.totalTimeForegroundServiceUsed},${userUsageData.lastTimeVisible},${userUsageData.totalTimeVisible}\n"
-            userUsageDataString.add(userUsageDataLine)
-        }
-
-        saveFileInBackground("user_${currentTime}.csv", userUsageDataString.toTypedArray())
-        saveFileInBackground("events_${currentTime}.csv", eventList.toTypedArray())
+        // TODO: Define event dataclass and create header with dataclass fields
+        updateRecords(eventRecords, eventUsageDataString, EVENT_HEADER, "events_${currentTime}.csv")
     }
 
+    private fun updateRecords(records: MutableList<String>, recordsToAdd:MutableList<String>, header: String, fileName: String) {
+        records.addAll(recordsToAdd)
+        if (records.size > MAX_USAGE_RECORDS) {
+            records.add(0, header)
+            saveFileInBackground(fileName, records)
+            records.clear()
+        }
+    }
 
     @SuppressLint("MissingPermission")
     private fun profileSystemData(currentTime: Long) {
@@ -189,17 +208,17 @@ class ProfilerService : Service() {
         val isScreenOn = powerManager.isInteractive
 
         val data = "$currentTime,$longitude,$latitude,$accuracy,$isCharging,$batteryLevel,$batterOverheat,$temperature,$screenBrightness,$isScreenOn\n"
-        systemDataList.add(data)
+        systemRecords.add(data)
 
-        if (systemDataList.size >= 10) {
+        if (systemRecords.size >= MAX_SYSTEM_RECORDS) {
             // Save the data collected above as a csv file named 'system_{timestamp}.csv'
-            systemDataList.add(0, "timestamp,longitude,latitude,accuracy,isCharging,batteryLevel,batterOverheat,temperature,screenBrightness,isScreenOn\n")
-            saveFileInBackground("system_${currentTime}.csv", systemDataList.toTypedArray())
-            systemDataList.clear()
+            systemRecords.add(0, SYSTEM_HEADER)
+            saveFileInBackground("system_${currentTime}.csv", systemRecords)
+            systemRecords.clear()
         }
     }
 
-    private fun saveFileInBackground(fileName: String, data: Array<String>) {
+    private fun saveFileInBackground(fileName: String, data: MutableList<String>) {
         val thread = Thread {
             // Do file saving operations in background thread
             val file = File(getExternalFilesDir(null), fileName)
@@ -281,7 +300,12 @@ class ProfilerService : Service() {
                 this.is_running = is_running
             }
 
+        private const val MAX_USAGE_RECORDS = 1000
+        private const val MAX_SYSTEM_RECORDS = 100
         private const val ONGOING_NOTIFICATION_ID = 18
+        private const val USER_USAGE_HEADER =  "timestamp,packageName,memoryUsed,lastTimeUsed,totalTimeInForeground,firstTimeUsed,lastTimeForegroundServiceUsed,totalTimeForegroundServiceUsed,lastTimeVisible,totalTimeVisible\n"
+        private const val EVENT_HEADER = "timestamp,packageName,timestamp,eventType,standbyBucket\n"
+        private const val SYSTEM_HEADER = "timestamp,longitude,latitude,accuracy,isCharging,batteryLevel,batterOverheat,temperature,screenBrightness,isScreenOn\n"
         private const val SERVICE_CHANNEL_ID = "profiler_service_channel_id"
     }
 }
