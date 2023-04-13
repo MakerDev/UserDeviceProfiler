@@ -7,24 +7,24 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Process
-import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.example.userdeviceprofiler.databinding.ActivityMainBinding
-import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
+    private var isGpsGranted = false
+    private var isNotificationGranted = false
+    private var isUsageStatGranted = false
+    private lateinit var firstFragment: FirstFragment
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,88 +38,104 @@ class MainActivity : AppCompatActivity() {
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
-        if (ProfilerService.IS_RUNNING) {
-            binding.fabStop.isEnabled = true
-            binding.fabStart.isEnabled = false
-        }
-
-        binding.fabStart.setOnClickListener { _ ->
-            binding.fabStart.isEnabled = false
-            binding.fabStop.isEnabled = true
+        binding.fabStart.setOnClickListener {
             // Start the profiler foreground service.
             val intent = Intent(this, ProfilerService::class.java)
             intent.action = "START"
             applicationContext.startForegroundService(intent)
+            firstFragment.updateIsRunning(true)
+            binding.fabStart.isEnabled = false
+            binding.fabStop.isEnabled = true
         }
         
-        binding.fabStop.setOnClickListener { _ ->
-            binding.fabStart.isEnabled = true
-            binding.fabStop.isEnabled = false
-
+        binding.fabStop.setOnClickListener {
             // Stop the profiler foreground service.
             val intent = Intent(this, ProfilerService::class.java)
             intent.action = "STOP"
             applicationContext.startService(intent)
+            firstFragment.updateIsRunning(false)
+            binding.fabStart.isEnabled = true
+            binding.fabStop.isEnabled = false
         }
 
-        val locationPermissionRequest = registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissions ->
-            when {
-                permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
-                    // Fine location access granted.
-                }
-                permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
-                    // Only approximate location access granted.
-                } else -> {
-                    // No location access granted.
-                }
-            }
-        }
-
-        if (!isNotificationPermissionGranted(applicationContext)) {
-            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            intent.putExtra(Settings.EXTRA_APP_PACKAGE, applicationContext.packageName)
-            startActivity(intent)
-        }
-
-        locationPermissionRequest.launch(arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION))
-
-        val granted = checkPermission()
-
-        if (!granted) {
-            binding.fabStart.isEnabled = false
-
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            startActivity(intent)
-        }
+        checkIfPermissionsGranted()
     }
 
-    private fun isNotificationPermissionGranted(context: Context): Boolean {
+    fun setFirstFragment(firstFragment: FirstFragment) {
+        this.firstFragment = firstFragment
+    }
+
+
+    private fun checkIfPermissionsGranted() {
+        isGpsGranted = isGpsPermissionGranted(applicationContext)
+        isNotificationGranted = isNotificationPermissionGranted(applicationContext)
+        isUsageStatGranted = isUsageStatPermissionGranted(applicationContext)
+
+        // If no permissions are granted, request all permissions.
+        if (!isGpsGranted && !isNotificationGranted && !isUsageStatGranted) {
+            firstFragment.requestAllPermissions(applicationContext)
+        }
+
+        firstFragment.updatePermissionStatus(isGpsGranted, isNotificationGranted, isUsageStatGranted)
+        updateButtonStates()
+    }
+
+    private fun updateButtonStates() {
+        // TODO: Deal with the case that user disable permission while the service is running.
+        if (ProfilerService.IS_RUNNING) {
+            binding.fabStart.isEnabled = false
+            binding.fabStop.isEnabled = true
+
+            return
+        }
+
+        if (!isGpsGranted || !isNotificationGranted || !isUsageStatGranted) {
+            binding.fabStart.isEnabled = false
+            binding.fabStop.isEnabled = false
+
+            return
+        }
+
+        // All permissions are granted and the service is not running.
+        binding.fabStart.isEnabled = true
+        binding.fabStop.isEnabled = false
+    }
+
+    fun isGpsPermissionGranted(context: Context): Boolean {
+        val packageName = context.packageName
+        val packageManager = context.packageManager
+        val permission = Manifest.permission.ACCESS_FINE_LOCATION
+        return packageManager.checkPermission(permission, packageName) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun isNotificationPermissionGranted(context: Context): Boolean {
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    private fun checkPermission(): Boolean {
+    fun isUsageStatPermissionGranted(context: Context): Boolean {
         val granted: Boolean
-        val appOps = applicationContext
-            .getSystemService(APP_OPS_SERVICE) as AppOpsManager
+        val appOps = context.getSystemService(APP_OPS_SERVICE) as AppOpsManager
         val mode = appOps.unsafeCheckOpNoThrow(
             AppOpsManager.OPSTR_GET_USAGE_STATS,
             Process.myUid(), applicationContext.packageName
         )
 
-        if (mode == AppOpsManager.MODE_DEFAULT) {
-            granted = applicationContext.checkCallingOrSelfPermission(
+        granted = if (mode == AppOpsManager.MODE_DEFAULT) {
+            applicationContext.checkCallingOrSelfPermission(
                 Manifest.permission.PACKAGE_USAGE_STATS
             ) == PackageManager.PERMISSION_GRANTED
         } else {
-            granted = (mode == AppOpsManager.MODE_ALLOWED)
+            (mode == AppOpsManager.MODE_ALLOWED)
         }
 
         return granted
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        //TODO: check if permissions are granted
+        checkIfPermissionsGranted()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
