@@ -42,34 +42,29 @@ class ProfilerService : Service() {
             return START_NOT_STICKY
         }
 
-        if (intent?.action != null && intent.action.equals("START", ignoreCase = true)) {
-            showNotification()
+        showNotification()
 
-            if (timer == null) {
-                timer = Timer()
-                timer?.schedule(object : TimerTask() {
-                    override fun run() {
-                        profile()
-                    }
-                }, 0, 10000) // 10 seconds
-            }
-
-            IS_RUNNING = true
+        if (timer == null) {
+            timer = Timer()
+            timer?.schedule(object : TimerTask() {
+                override fun run() {
+                    IS_RUNNING = true // To check if the service is running or not
+                    profile()
+                }
+            }, 0, 10000) // 10 seconds
         }
+
+        IS_RUNNING = true
 
         return START_STICKY
     }
 
-    private fun flushRecords() {
+
+    private fun profile() {
         val currentTime = System.currentTimeMillis()
 
-        userRecords.add(0, USER_USAGE_HEADER)
-        eventRecords.add(0, EVENT_HEADER)
-        systemRecords.add(0, SYSTEM_HEADER)
-
-        saveFileInBackground("user_${currentTime}.csv", userRecords)
-        saveFileInBackground("events_${currentTime}.csv", eventRecords)
-        saveFileInBackground("system_${currentTime}.csv", systemRecords)
+        profileUserData(currentTime)
+        profileSystemData(currentTime)
     }
 
     private fun profileUserData(currentTime: Long) {
@@ -162,15 +157,6 @@ class ProfilerService : Service() {
         updateRecords(eventRecords, eventUsageDataString, EVENT_HEADER, "events_${currentTime}.csv")
     }
 
-    private fun updateRecords(records: MutableList<String>, recordsToAdd:MutableList<String>, header: String, fileName: String) {
-        records.addAll(recordsToAdd)
-        if (records.size > MAX_USAGE_RECORDS) {
-            records.add(0, header)
-            saveFileInBackground(fileName, records)
-            records.clear()
-        }
-    }
-
     @SuppressLint("MissingPermission")
     private fun profileSystemData(currentTime: Long) {
         // Get the current GPS information
@@ -218,6 +204,29 @@ class ProfilerService : Service() {
         }
     }
 
+
+    private fun flushRecords() {
+        val currentTime = System.currentTimeMillis()
+
+        userRecords.add(0, USER_USAGE_HEADER)
+        eventRecords.add(0, EVENT_HEADER)
+        systemRecords.add(0, SYSTEM_HEADER)
+
+        saveFileInBackground("user_${currentTime}.csv", userRecords)
+        saveFileInBackground("events_${currentTime}.csv", eventRecords)
+        saveFileInBackground("system_${currentTime}.csv", systemRecords)
+    }
+
+    private fun updateRecords(records: MutableList<String>, recordsToAdd:MutableList<String>, header: String, fileName: String) {
+        records.addAll(recordsToAdd)
+        if (records.size > MAX_USAGE_RECORDS) {
+            records.add(0, header)
+            saveFileInBackground(fileName, records)
+            records.clear()
+        }
+    }
+
+
     private fun saveFileInBackground(fileName: String, data: MutableList<String>) {
         val thread = Thread {
             // Do file saving operations in background thread
@@ -231,13 +240,6 @@ class ProfilerService : Service() {
         }
 
         thread.start()
-    }
-
-    private fun profile() {
-        val currentTime = System.currentTimeMillis()
-
-        profileUserData(currentTime)
-        profileSystemData(currentTime)
     }
 
     private fun createNotificationChannel() {
