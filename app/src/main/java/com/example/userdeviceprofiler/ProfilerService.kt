@@ -51,7 +51,7 @@ class ProfilerService : Service() {
                     IS_RUNNING = true // To check if the service is running or not
                     profile()
                 }
-            }, 0, 10000) // 10 seconds
+            }, 0, INTERVAL) // 3 seconds
         }
 
         IS_RUNNING = true
@@ -73,16 +73,14 @@ class ProfilerService : Service() {
             activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         }
 
-        val interval = 1000 * 10
-
-        profileUserUsage(currentTime, interval)
-        profileUserEvents(currentTime, interval)
+        profileUserUsage(currentTime)
+        profileUserEvents(currentTime)
     }
 
-    private fun profileUserUsage(currentTime: Long, interval: Int = 10000) {
+    private fun profileUserUsage(currentTime: Long) {
         val stats = usageStatsManager!!.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY,
-            currentTime - interval, // 10 sec period
+            currentTime - INTERVAL,
             currentTime
         )
 
@@ -91,7 +89,7 @@ class ProfilerService : Service() {
         for (usageStats in stats) {
             val userUsageData = UserUsageData()
             userUsageData.packageName = usageStats.packageName
-            // TODO: calculate memory amount used.
+
             userUsageData.memoryUsed = usageStats.totalTimeInForeground
             userUsageData.lastTimeUsed = usageStats.lastTimeUsed
             userUsageData.totalTimeInForeground = usageStats.totalTimeInForeground
@@ -109,26 +107,27 @@ class ProfilerService : Service() {
             userUsageDataList.add(userUsageData)
         }
 
-        val userUsageDataString = mutableListOf<String>()
+        val newUserUsageRecords = mutableListOf<String>()
 
         for (userUsageData in userUsageDataList) {
             val userUsageDataLine =
                 "$currentTime,${userUsageData.packageName},${userUsageData.memoryUsed},${userUsageData.lastTimeUsed},${userUsageData.totalTimeInForeground},${userUsageData.firstTimeUsed},${userUsageData.lastTimeForegroundServiceUsed},${userUsageData.totalTimeForegroundServiceUsed},${userUsageData.lastTimeVisible},${userUsageData.totalTimeVisible}\n"
-            userUsageDataString.add(userUsageDataLine)
+            newUserUsageRecords.add(userUsageDataLine)
         }
 
-        updateRecords(
-            userRecords,
-            userUsageDataString,
-            USER_USAGE_HEADER,
-            "user_${currentTime}.csv"
-        )
+        userRecords.addAll(newUserUsageRecords)
+
+        if (userRecords.size > MAX_USAGE_RECORDS) {
+            userRecords.add(0, USER_USAGE_HEADER)
+            saveFileInBackground("user_${currentTime}.csv", userRecords)
+            userRecords = mutableListOf()
+        }
     }
 
-    private fun profileUserEvents(currentTime: Long, interval: Int = 10000) {
+    private fun profileUserEvents(currentTime: Long) {
         val query = UsageEvents.Event.NONE
         val usageEvents = mutableListOf<UsageEvents.Event>()
-        val usageEventsIterator = usageStatsManager!!.queryEvents(currentTime - interval, currentTime)
+        val usageEventsIterator = usageStatsManager!!.queryEvents(currentTime - INTERVAL, currentTime)
         while (usageEventsIterator.hasNextEvent()) {
             val event = UsageEvents.Event()
             usageEventsIterator.getNextEvent(event)
@@ -137,7 +136,7 @@ class ProfilerService : Service() {
             }
         }
 
-        val eventUsageDataString = mutableListOf<String>()
+        val newEventRecords = mutableListOf<String>()
 
         for (event in usageEvents) {
             val packageName = event.packageName
@@ -150,11 +149,17 @@ class ProfilerService : Service() {
             }
 
             val eventString = "$currentTime,$packageName,$timestamp,$eventType,$standbyBucket\n"
-            eventUsageDataString.add(eventString)
+            newEventRecords.add(eventString)
         }
 
         // TODO: Define event dataclass and create header with dataclass fields
-        updateRecords(eventRecords, eventUsageDataString, EVENT_HEADER, "events_${currentTime}.csv")
+        eventRecords.addAll(newEventRecords)
+
+        if (eventRecords.size > MAX_USAGE_RECORDS) {
+            eventRecords.add(0, EVENT_HEADER)
+            saveFileInBackground("events_${currentTime}.csv", eventRecords)
+            eventRecords = mutableListOf()
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -194,13 +199,14 @@ class ProfilerService : Service() {
         val isScreenOn = powerManager.isInteractive
 
         val data = "$currentTime,$longitude,$latitude,$accuracy,$isCharging,$batteryLevel,$batterOverheat,$temperature,$screenBrightness,$isScreenOn\n"
+
         systemRecords.add(data)
 
         if (systemRecords.size >= MAX_SYSTEM_RECORDS) {
             // Save the data collected above as a csv file named 'system_{timestamp}.csv'
             systemRecords.add(0, SYSTEM_HEADER)
             saveFileInBackground("system_${currentTime}.csv", systemRecords)
-            systemRecords.clear()
+            systemRecords = mutableListOf()
         }
     }
 
@@ -215,15 +221,10 @@ class ProfilerService : Service() {
         saveFileInBackground("user_${currentTime}.csv", userRecords)
         saveFileInBackground("events_${currentTime}.csv", eventRecords)
         saveFileInBackground("system_${currentTime}.csv", systemRecords)
-    }
 
-    private fun updateRecords(records: MutableList<String>, recordsToAdd:MutableList<String>, header: String, fileName: String) {
-        records.addAll(recordsToAdd)
-        if (records.size > MAX_USAGE_RECORDS) {
-            records.add(0, header)
-            saveFileInBackground(fileName, records)
-            records.clear()
-        }
+        userRecords = mutableListOf()
+        eventRecords = mutableListOf()
+        systemRecords = mutableListOf()
     }
 
 
@@ -302,6 +303,7 @@ class ProfilerService : Service() {
                 this.is_running = is_running
             }
 
+        private const val INTERVAL: Long = 3000 // 3 seconds
         private const val MAX_USAGE_RECORDS = 1000
         private const val MAX_SYSTEM_RECORDS = 100
         private const val ONGOING_NOTIFICATION_ID = 18
