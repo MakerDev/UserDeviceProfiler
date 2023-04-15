@@ -74,6 +74,7 @@ class FirstFragment : Fragment() {
     }
 
     private fun requestGps(context: Context) {
+        // TODO: Request for ACCESS_BACKGROUND_LOCATION too.
         val intentGps = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
         val uri = Uri.fromParts("package", context.packageName, null)
         intentGps.data = uri

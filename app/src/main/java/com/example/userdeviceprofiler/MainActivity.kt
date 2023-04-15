@@ -5,6 +5,7 @@ import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.view.Menu
@@ -104,8 +105,20 @@ class MainActivity : AppCompatActivity() {
     fun isGpsPermissionGranted(context: Context): Boolean {
         val packageName = context.packageName
         val packageManager = context.packageManager
-        val permission = Manifest.permission.ACCESS_FINE_LOCATION
-        return packageManager.checkPermission(permission, packageName) == PackageManager.PERMISSION_GRANTED
+        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+        // If sdk version is 29 or higher, we need to check both fine and coarse location permissions.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+
+        for (permission in permissions) {
+            if (packageManager.checkPermission(permission, packageName) != PackageManager.PERMISSION_GRANTED) {
+                return false
+            }
+        }
+
+        return true
     }
 
     fun isNotificationPermissionGranted(context: Context): Boolean {
@@ -115,10 +128,17 @@ class MainActivity : AppCompatActivity() {
     fun isUsageStatPermissionGranted(context: Context): Boolean {
         val granted: Boolean
         val appOps = context.getSystemService(APP_OPS_SERVICE) as AppOpsManager
-        val mode = appOps.unsafeCheckOpNoThrow(
-            AppOpsManager.OPSTR_GET_USAGE_STATS,
-            Process.myUid(), applicationContext.packageName
-        )
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(), applicationContext.packageName
+            )
+        } else {
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(), applicationContext.packageName
+            )
+        }
 
         granted = if (mode == AppOpsManager.MODE_DEFAULT) {
             applicationContext.checkCallingOrSelfPermission(
