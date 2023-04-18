@@ -88,8 +88,18 @@ class ProfilerService : Service() {
         // Get the current foreground app information and store their data list in form of UserUsageData
         for (usageStats in stats) {
             val userUsageData = UserUsageData()
-            userUsageData.packageName = usageStats.packageName
 
+            var isUsed = usageStats.totalTimeInForeground > 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                isUsed = isUsed || usageStats.lastTimeForegroundServiceUsed > 0
+            }
+
+            // If the app is not used, ignore it
+            if (!isUsed) {
+                continue
+            }
+
+            userUsageData.packageName = usageStats.packageName
             userUsageData.memoryUsed = usageStats.totalTimeInForeground
             userUsageData.lastTimeUsed = usageStats.lastTimeUsed
             userUsageData.totalTimeInForeground = usageStats.totalTimeInForeground
@@ -304,8 +314,8 @@ class ProfilerService : Service() {
             }
 
         private const val INTERVAL: Long = 3000 // 3 seconds
-        private const val MAX_USAGE_RECORDS = 1000
-        private const val MAX_SYSTEM_RECORDS = 100
+        private const val MAX_USAGE_RECORDS = 500
+        private const val MAX_SYSTEM_RECORDS = 500
         private const val ONGOING_NOTIFICATION_ID = 18
         private const val USER_USAGE_HEADER =  "timestamp,packageName,memoryUsed,lastTimeUsed,totalTimeInForeground,firstTimeUsed,lastTimeForegroundServiceUsed,totalTimeForegroundServiceUsed,lastTimeVisible,totalTimeVisible\n"
         private const val EVENT_HEADER = "timestamp,packageName,timestamp,eventType,standbyBucket\n"
