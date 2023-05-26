@@ -1,6 +1,4 @@
 package com.example.userdeviceprofiler
-import java.text.SimpleDateFormat
-import java.util.*
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -9,15 +7,16 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.Editable
 import android.text.TextWatcher
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import androidx.core.content.ContextCompat.getSystemService
+import android.widget.Toast
+import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.userdeviceprofiler.databinding.FragmentFirstBinding
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -54,11 +53,16 @@ class FirstFragment : Fragment() {
         }
 
         binding.uploadDataButton.setOnClickListener {
+            if (ProfilerService.IS_RUNNING) {
+                Toast.makeText(requireContext(), "Please stop the profiler first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             binding.uploadDataButton.isEnabled = false
             binding.nameTextField.clearFocus()
             hideKeyboard()
-
             uploadData()
+            binding.nameTextField.text.clear()
         }
 
         binding.nameTextField.addTextChangedListener(object : TextWatcher {
@@ -77,20 +81,31 @@ class FirstFragment : Fragment() {
             }
         })
 
+        binding.fragmentFirst.setOnTouchListener { view, motionEvent ->
+            hideKeyboard()
+            binding.nameTextField.clearFocus()
+
+            false
+        }
+
         return binding.root
     }
 
     private fun hideKeyboard() {
-        val inputMethodManager = requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        inputMethodManager.hideSoftInputFromWindow(binding.nameTextField.windowToken, 0)
+        if (activity != null && requireActivity().currentFocus != null) {
+            val inputManager = requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            inputManager.hideSoftInputFromWindow(
+                requireActivity().currentFocus!!.windowToken,
+                InputMethodManager.HIDE_NOT_ALWAYS
+            )
+        }
     }
-
     @SuppressLint("SetTextI18n")
     fun updateIsRunning(started: Boolean) {
         binding.isServiceRunning.text = "Is Service Running: $started"
     }
 
-    fun uploadData() {
+    private fun uploadData() {
         val uploader = CsvZipUploader()
         val name = binding.nameTextField.text.toString()
         val dateFormat = SimpleDateFormat("MMdd_HHmmss", Locale.getDefault())
@@ -155,6 +170,10 @@ class FirstFragment : Fragment() {
         val usageStatGranted = activity.isUsageStatPermissionGranted(activity.applicationContext)
 
         updatePermissionStatus(gpsGranted, notificationGranted, usageStatGranted)
+
+        if (!gpsGranted && !notificationGranted && !usageStatGranted) {
+            binding.uploadDataButton.isEnabled = false
+        }
     }
 
     @SuppressLint("SetTextI18n")

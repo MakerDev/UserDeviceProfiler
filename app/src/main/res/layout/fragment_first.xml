@@ -5,6 +5,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:id="@+id/fragment_first"
     tools:context=".FirstFragment">
 
     <LinearLayout
@@ -26,20 +27,6 @@
             android:layout_marginBottom="24dp"
             android:textSize="24sp"
             android:text="Is Service Running: False" />
-
-        <EditText
-            android:id="@+id/nameTextField"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:imeOptions="actionDone"
-            android:hint="Enter your name"
-            android:inputType="text" />
-        <Button
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Upload Data"
-            android:enabled="false"
-            android:id="@+id/upload_data_button" />
 
         <LinearLayout
             android:orientation="horizontal"
@@ -100,7 +87,22 @@
                 android:layout_height="wrap_content" />
 
         </LinearLayout>
+
+        <EditText
+            android:id="@+id/nameTextField"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:imeOptions="actionDone"
+            android:hint="Enter your name"
+            android:inputType="text" />
+        <Button
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Upload Data"
+            android:enabled="false"
+            android:id="@+id/upload_data_button" />
     </LinearLayout>
+
     <Button
         android:id="@+id/button_first"
         android:layout_width="wrap_content"
