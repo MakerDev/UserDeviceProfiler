@@ -13,6 +13,9 @@ import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.navigation.fragment.findNavController
 import com.example.userdeviceprofiler.databinding.FragmentFirstBinding
 
@@ -51,6 +54,10 @@ class FirstFragment : Fragment() {
         }
 
         binding.uploadDataButton.setOnClickListener {
+            binding.uploadDataButton.isEnabled = false
+            binding.nameTextField.clearFocus()
+            hideKeyboard()
+
             uploadData()
         }
 
@@ -73,13 +80,17 @@ class FirstFragment : Fragment() {
         return binding.root
     }
 
+    private fun hideKeyboard() {
+        val inputMethodManager = requireActivity().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        inputMethodManager.hideSoftInputFromWindow(binding.nameTextField.windowToken, 0)
+    }
+
     @SuppressLint("SetTextI18n")
     fun updateIsRunning(started: Boolean) {
         binding.isServiceRunning.text = "Is Service Running: $started"
     }
 
     fun uploadData() {
-        binding.uploadDataButton.isEnabled = false
         val uploader = CsvZipUploader()
         val name = binding.nameTextField.text.toString()
         val dateFormat = SimpleDateFormat("MMdd_HHmmss", Locale.getDefault())

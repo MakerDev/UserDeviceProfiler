@@ -2,9 +2,11 @@ package com.example.userdeviceprofiler
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -59,6 +61,16 @@ class CsvZipUploader {
                 if (uploadSuccessful) {
                     for (csvFile in csvFiles) {
                         csvFile.delete()
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Upload successful!", Toast.LENGTH_LONG).show()
+                    }
+                }
+                else
+                {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Upload failed!", Toast.LENGTH_LONG).show()
                     }
                 }
             }
