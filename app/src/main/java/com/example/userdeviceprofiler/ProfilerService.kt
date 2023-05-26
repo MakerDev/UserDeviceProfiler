@@ -313,9 +313,9 @@ class ProfilerService : Service() {
                 this.is_running = is_running
             }
 
-        private const val INTERVAL: Long = 3000 // 3 seconds
-        private const val MAX_USAGE_RECORDS = 500
-        private const val MAX_SYSTEM_RECORDS = 500
+        private const val INTERVAL: Long = 5000 // 5 seconds
+        private const val MAX_USAGE_RECORDS = 60000
+        private const val MAX_SYSTEM_RECORDS = 60000
         private const val ONGOING_NOTIFICATION_ID = 18
         private const val USER_USAGE_HEADER =  "timestamp,packageName,memoryUsed,lastTimeUsed,totalTimeInForeground,firstTimeUsed,lastTimeForegroundServiceUsed,totalTimeForegroundServiceUsed,lastTimeVisible,totalTimeVisible\n"
         private const val EVENT_HEADER = "timestamp,packageName,timestamp,eventType,standbyBucket\n"

@@ -1,11 +1,14 @@
 package com.example.userdeviceprofiler
-
+import java.text.SimpleDateFormat
+import java.util.*
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.text.Editable
+import android.text.TextWatcher
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -47,12 +50,41 @@ class FirstFragment : Fragment() {
             requestUsageStat()
         }
 
+        binding.uploadDataButton.setOnClickListener {
+            uploadData()
+        }
+
+        binding.nameTextField.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // Not needed for this scenario
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Update the enabled state of the uploadDataButton based on nameTextField's text
+                val isNameFieldEmpty = s.isNullOrEmpty()
+                binding.uploadDataButton.isEnabled = !isNameFieldEmpty
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                // Not needed for this scenario
+            }
+        })
+
         return binding.root
     }
 
     @SuppressLint("SetTextI18n")
     fun updateIsRunning(started: Boolean) {
         binding.isServiceRunning.text = "Is Service Running: $started"
+    }
+
+    fun uploadData() {
+        binding.uploadDataButton.isEnabled = false
+        val uploader = CsvZipUploader()
+        val name = binding.nameTextField.text.toString()
+        val dateFormat = SimpleDateFormat("MMdd_HHmmss", Locale.getDefault())
+        val dateString = dateFormat.format(Date(System.currentTimeMillis()))
+        uploader.compressAndUploadCsvFiles(requireContext(), "${name}_${dateString}.zip")
     }
 
     fun requestAllPermissions(context: Context) {
